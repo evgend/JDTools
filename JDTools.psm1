@@ -217,7 +217,6 @@ function Load-Module
 function New-JDModuleFolder 
 {
 #.ExternalHelp JDTools.Help.xml
-# New-JDModuleFolder -ModuleName 'JDADReporting' -Path "J:\"
     [CmdletBinding()]
     [OutputType()]
     Param
