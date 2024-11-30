@@ -4,5 +4,6 @@
         <LogsFolder>C:\Logs</LogsFolder>
         <LogFileName>logfile.log</LogFileName>
         <LogFileDate>Get-Date -UFormat '%Y-%m-%d'</LogFileDate>
+        <LoggingEnabled>$True</LoggingEnabled>
     </Logs>
 </Configuration>
