@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Logs>
+        <LogsFolder>C:\Logs</LogsFolder>
+        <LogFileName>logfile.log</LogFileName>
+        <LogFileDate>Get-Date -UFormat '%Y-%m-%d'</LogFileDate>
+        <LoggingEnabled>$True</LoggingEnabled>
+    </Logs>
+</Configuration>
