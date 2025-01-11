@@ -1,5 +1,5 @@
 ﻿function Import-ModuleConfig {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$true)]
@@ -24,11 +24,12 @@
             }
         }
     }
-}
+}#END Function
+[xml]$script:JDToolsModuleConfig = Import-ModuleConfig -Module JDTools
 Function Get-LogFile {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [cmdletbinding()]
-    Param(
+    Param (
         [string]$Module = 'JDTools'
     )
     begin {
@@ -37,31 +38,28 @@ Function Get-LogFile {
     process {
         Get-Item "$Path" -ErrorAction stop
     }
-}
+}#END Function
 Function Get-LogFileName {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [cmdletbinding()]
-        Param(
-            $Path = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
-            $Name = $($script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
-            (Invoke-Expression $script:JDToolsModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
-            $script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[1])
-        )
-    Get-Item "$Path\$Name" -ErrorAction stop
-}
+    Param (
+        $Path = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
+        $Name = $($script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
+        (Invoke-Expression $script:JDToolsModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
+        $script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[1])
+    )
+    process {
+        Get-Item "$Path\$Name" -ErrorAction stop
+    }
+}#END Function
 Function Get-LogFilePath {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [cmdletbinding()]
-        Param(
+        Param (
             [string]$Module = 'JDTools'
         )
     begin {
-        Write-Debug -Message "Test"
-        if ($Module -eq 'JDTools') {
-            [xml]$ModuleConfig = Import-ModuleConfig -Module 'JDTools'
-        } else {
-            [xml]$ModuleConfig = Import-ModuleConfig -Module $Module
-        }
+        [xml]$ModuleConfig = Import-ModuleConfig -Module $Module
         $Path = $ModuleConfig.Configuration.Logs.LogsFolder
         $Name = $( $ModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
             (Invoke-Expression  $ModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
@@ -70,27 +68,27 @@ Function Get-LogFilePath {
     process {
         Write-Output "$Path\$Name"
     }
-}
+}#END Function
 Function Write-log {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [cmdletbinding()]
-        Param(
-            [Parameter(Mandatory = $false,Position = 0)]
-                [string]$Message,
-            [Parameter(Mandatory = $false,Position = 1)]
-                [string]$Module = 'JDTools',
-            [Parameter(Mandatory = $false,Position = 2,HelpMessage='Please use .log in the end of the file name')]
-                [string]$Path = $(Get-LogFilePath -Module $Module),
-            [Parameter(Mandatory = $false,Position = 3)]
-                [ValidateSet('SUCCESS','OPERATION','WARNING','ERROR')]
-                [string]$MessageType,
-            [Parameter(Mandatory = $false,Position = 4)]
-                [switch]$WriteBegin,
-            [Parameter(Mandatory = $false,Position = 5)]
-                [switch]$WriteEnd,
-            [Parameter(Mandatory = $false,Position = 6)]
-                [switch]$WriteDate
-        )
+    Param (
+        [Parameter(Mandatory = $false,Position = 0)]
+            [string]$Message,
+        [Parameter(Mandatory = $false,Position = 1)]
+            [string]$Module = 'JDTools',
+        [Parameter(Mandatory = $false,Position = 2,HelpMessage='Please use .log in the end of the file name')]
+            [string]$Path = $(Get-LogFilePath -Module $Module),
+        [Parameter(Mandatory = $false,Position = 3)]
+            [ValidateSet('SUCCESS','OPERATION','WARNING','ERROR')]
+            [string]$MessageType,
+        [Parameter(Mandatory = $false,Position = 4)]
+            [switch]$WriteBegin,
+        [Parameter(Mandatory = $false,Position = 5)]
+            [switch]$WriteEnd,
+        [Parameter(Mandatory = $false,Position = 6)]
+            [switch]$WriteDate
+    )
     begin {
         if (-not (Test-Path $Path)) {
             New-LogFile -Module $Module | Out-null
@@ -114,39 +112,63 @@ Function Write-log {
             Add-Content ' ---  END  --- --- --- --- --- --- --- --- --- ' -Path $Path
         }
     }
-}
+}#END Function
 Function Invoke-LogsRotation {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [CmdletBinding()]
-        Param(
-            [Parameter(ValueFromPipeline=$false)]
-            [string]$LogDir = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder, # Directory log files are written to
-            [Parameter(ValueFromPipeline=$false)]
-            [int]$DayOfWeek = 2, # The day of the week to store for weekly files (1 to 7 where 1 is Sunday)
-            [Parameter(ValueFromPipeline=$false)]
-            [int]$DayOfMonth = 1, # The day of the month to store for monthly files (Max = 28 since varying last day of month not currently handled)
-            [Parameter(ValueFromPipeline=$false)]
-            [int]$RotationDaily = 7, # The number of daily files to keep
-            [Parameter(ValueFromPipeline=$false)]
-            [int]$RotationWeekly = 6, # The number of weekly files to keep
-            [Parameter(ValueFromPipeline=$false)]
-            [int]$RotationMonthly = 5 # The number of monthly files to keep
-        )
-        begin {
-            if ( -not (Test-Path $LogDir) ) {
-                Write-Warning "Folder $LogDir dose not exists."
-                Break
-            }
+    Param (
+        [Parameter(ValueFromPipeline=$false)]
+        [string]$LogDir = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
+        [Parameter(ValueFromPipeline=$false)]
+        [int]$DayOfWeek = 2,
+        [Parameter(ValueFromPipeline=$false)]
+        [int]$DayOfMonth = 1,
+        [Parameter(ValueFromPipeline=$false)]
+        [int]$RotationDaily = 7,
+        [Parameter(ValueFromPipeline=$false)]
+        [int]$RotationWeekly = 6,
+        [Parameter(ValueFromPipeline=$false)]
+        [int]$RotationMonthly = 5
+    )
+    begin {
+        if (-not (Test-Path $LogDir)) {
+            Write-Warning "Folder $LogDir does not exist."
+            Break
         }
-        PROCESS
-        {
-            #TODO Write log rotation feature.
+    }
+    process {
+        # Get all log files in the directory
+        $logFiles = Get-ChildItem -Path $LogDir -File
+
+        # Daily rotation
+        $dailyFiles = $logFiles | Sort-Object LastWriteTime -Descending
+        if ($dailyFiles.Count -gt $RotationDaily) {
+            $dailyFiles[$RotationDaily..($dailyFiles.Count - 1)] | Remove-Item -Force
         }
-}
+
+        # Weekly rotation
+        $weeklyFiles = $logFiles | Where-Object {
+            $_.LastWriteTime.DayOfWeek -eq $DayOfWeek
+        } | Sort-Object LastWriteTime -Descending
+        if ($weeklyFiles.Count -gt $RotationWeekly) {
+            $weeklyFiles[$RotationWeekly..($weeklyFiles.Count - 1)] | Remove-Item -Force
+        }
+
+        # Monthly rotation
+        $monthlyFiles = $logFiles | Where-Object {
+            $_.LastWriteTime.Day -eq $DayOfMonth
+        } | Sort-Object LastWriteTime -Descending
+        if ($monthlyFiles.Count -gt $RotationMonthly) {
+            $monthlyFiles[$RotationMonthly..($monthlyFiles.Count - 1)] | Remove-Item -Force
+        }
+
+        Write-Verbose "Log rotation completed successfully for directory $LogDir."
+    }#END Process
+}#END Function
 Function New-TempLogs {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [CmdletBinding()]
-    Param(
+    Param (
         [string]$Path = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
         [string]$Name = $($script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
         (Invoke-Expression $script:JDToolsModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
@@ -173,9 +195,9 @@ Function New-TempLogs {
             (Get-Item -Path ("$Path\$LogFileName")).LastWriteTime = $Date
         }
     }
-}
+}#END Function
 Function New-LogFile {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [cmdletbinding()]
     Param(
         [Parameter(Mandatory = $false,Position = 1)]
@@ -186,92 +208,77 @@ Function New-LogFile {
     process {
         New-Item -Path $Path -Force
     }    
-}
-Function ValidatePath ([Parameter(Mandatory = $true)]$Path,
-            [Parameter(Mandatory = $true)]$Name)
-{
-    if ( -not (Test-Path -Path "$Path")) {
-        $FolderPathExists = $false
-    } elseif ( Test-Path -Path "$Path" ) {
-        $FolderPathExists = $true
-    }
-    if ( -not (Test-Path -Path "$Path\$Name")) {
-        $FileExists = $false
-    } elseif ( Test-Path -Path "$Path\$Name" ) {
-        $FileExists = $true
-    }
-    $param =@{FolderPathExists=$FolderPathExists ;FileExists = $FileExists}
-    Write-Output $param
-}
-function Load-Module {
-    param (
-        [parameter(Mandatory = $true)]
-        [string]$name
-    )
-    $retVal = $true
-    if (-not (Get-Module -Name $name)) {
-        $retVal = Get-Module -ListAvailable | Where-Object { $_.Name -eq $name }
-        if ($retVal) {
-            try {
-                Import-Module $name -ErrorAction SilentlyContinue
-            } catch {
-                $retVal = $false
-            }
-        }
-    }
-    return $retVal
-}# function end
+}#END Function
 function New-JDModuleFolder {
-#.ExternalHelp JDTools.Help.xml
+    #.ExternalHelp JDTools.Help.xml
     [CmdletBinding()]
     [OutputType()]
-    Param
-    (
+    Param (
         [Parameter(Mandatory=$true)]
         [ValidateNotNull()]
         [string]$ModuleName,
         [Parameter(Mandatory=$true)]
         [ValidateNotNull()]
-        [string]$Path
+        [string]$Path,
+        [ValidateSet('en-US','fr-FR','de-DE','es-ES','it-IT','ja-JP','ko-KR','pt-BR','ru-RU','zh-CN','zh-TW')]
+        [string]$LanguageCode = 'en-US'
     )
     process {
         if ( -not (Test-Path -Path "$Path\$ModuleName") ) {
-            Write-Verbose -Message "Создаем $Path\$ModuleName"
+            Write-Verbose -Message "Creating $Path\$ModuleName"
             New-item -ItemType directory -Path "$Path\$ModuleName" -Force | Out-null
         }
-        if ( -not (Test-Path "$Path\$ModuleName\en-US") ) {
-            New-item -ItemType directory -Path "$Path\$ModuleName\en-US" -Force | Out-null
-            if ( -not (Test-Path "$Path\$ModuleName\en-US\$ModuleName.Help.xml") ) {
-                New-Item -itemtype file -Path "$Path\$ModuleName\en-US\$ModuleName.Help.xml"
+        if ( -not (Test-Path "$Path\$ModuleName\$LanguageCode") ) {
+            New-item -ItemType directory -Path "$Path\$ModuleName\$LanguageCode" -Force | Out-null
+            if ( -not (Test-Path "$Path\$ModuleName\$LanguageCode\$ModuleName.Help.xml") ) {
+                New-Item -itemtype file -Path "$Path\$ModuleName\$LanguageCode\$ModuleName.Help.xml"
             }
         }
-        if ( -not (Test-Path "$Path\$ModuleName\ru-RU") ) {
-            New-item -ItemType directory -Path "$Path\$ModuleName\ru-RU" -Force | Out-null
-            if ( -not (Test-Path "$Path\$ModuleName\ru-RU\$ModuleName.Help.xml") ) {
-                New-Item -itemtype file -Path "$Path\$ModuleName\ru-RU\$ModuleName.Help.xml"
-            }
-        }
-        if ( -not (Test-Path "$Path\$ModuleName\uk-UA") ) {
-            New-item -ItemType directory -Path "$Path\$ModuleName\uk-UA" -Force | Out-null
-            if ( -not (Test-Path "$Path\$ModuleName\uk-UA\$ModuleName.Help.xml") ) {
-                New-Item -itemtype file -Path "$Path\$ModuleName\uk-UA\$ModuleName.Help.xml"
-            }
+        if ( -not (Test-Path "$Path\$ModuleName\docs") ) {
+            New-item -ItemType directory -Path "$Path\$ModuleName\docs" -Force | Out-null
         }
         if ( -not (Test-Path "$Path\$ModuleName\$ModuleName.psm1") ) {
             New-Item -itemtype file -Path "$Path\$ModuleName\$ModuleName.psm1"
         }
         if ( -not (Test-Path "$Path\$ModuleName\$ModuleName.psd1") ) {
             New-Item -itemtype file -Path "$Path\$ModuleName\$ModuleName.psd1"
+            #TODO Generate new module manifest.
         }
     }
+}#END Function
+function Write-EventLogEntry {
+    #.ExternalHelp JDTools.Help.xml
+    param (
+        [string]$LogName = "JDToolsLog",
+        [string]$Source = "JDTools",
+        [string]$EntryType = "Information", # Can be Information, Warning, Error
+        [string]$Message
+    )
+
+    # Function to check if the script is running with elevated privileges
+    function Test-IsAdmin {
+        $currentUser = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        return $currentUser.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+
+    # Check if the source exists, if not create it
+    if (-not [System.Diagnostics.EventLog]::SourceExists($Source)) {
+        if (Test-IsAdmin) {
+            [System.Diagnostics.EventLog]::CreateEventSource($Source, $LogName)
+        } else {
+            throw "Creating an event source requires administrative privileges. Please run this script as an administrator."
+        }
+    }
+    # Write the entry to the event log
+    Write-EventLog -LogName $LogName -Source $Source -EntryType $EntryType -EventId 1 -Message $Message
 }
 Export-ModuleMember -Function 'Import-ModuleConfig',
 'New-LogFile',
 'New-TempLogs',
 'Write-log', 
-'Invoke-LogsRotation', 
-'Load-Module', 
+'Invoke-LogsRotation',  
 'New-JDModuleFolder',
 'Get-LogFilePath',
 'Get-LogFile',
-'Get-LogFileName' #-Variable JD_LogsFolder, JD_LogFileName
+'Get-LogFileName',
+'Write-EventLogEntry'
