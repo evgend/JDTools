@@ -25,10 +25,114 @@
         }
     }
 }#END Function
-[xml]$script:JDToolsModuleConfig = Import-ModuleConfig -Module JDTools
+[xml]$script:ModuleConfig = Import-ModuleConfig -Module JDTools
+function Get-ModuleConfig {
+    #.ExternalHelp JDTools.Help.xml
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$Module,
+        [string]$XPath
+    )
+    <#DynamicParam {
+        if (-not [string]::isNullOrEmpty( $Module )) {
+            $arrSet = Get-Module -ListAvailable -Name "*$Module*" | Select-Object -ExpandProperty Name
+        } else {
+            $arrSet = Get-Module -ListAvailable | Select-Object -First 5
+        }
+        # Set the dynamic parameters' name
+        $ParameterName = 'Module'
+
+        # Create the dictionary
+        $RuntimeParameterDictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
+
+        # Create the collection of attributes
+        $AttributeCollection = New-Object System.Collections.ObjectModel.Collection[System.Attribute]
+
+        # Create and set the parameters' attributes
+        $ParameterAttribute = New-Object System.Management.Automation.ParameterAttribute
+        $ParameterAttribute.Mandatory = $true
+        $ParameterAttribute.Position = 1
+
+        # Add the attributes to the attributes collection
+        $AttributeCollection.Add($ParameterAttribute)
+
+        # Generate and set the ValidateSet
+        $ValidateSetAttribute = New-Object System.Management.Automation.ValidateSetAttribute($arrSet)
+
+        # Add the ValidateSet to the attributes collection
+        $AttributeCollection.Add($ValidateSetAttribute)
+
+        # Create and return the dynamic parameter
+        $RuntimeParameter = New-Object System.Management.Automation.RuntimeDefinedParameter($ParameterName, [string], $AttributeCollection)
+        $RuntimeParameterDictionary.Add($ParameterName, $RuntimeParameter)
+            return $RuntimeParameterDictionary
+    }#>
+    process {
+        [xml]$ModuleConf = Import-ModuleConfig -Module $Module
+        $props = @{}
+        if ($PSBoundParameters.ContainsKey('XPath')) {
+            $obj = $ModuleConf.SelectNodes("$XPath")
+        } else {
+            $Paramerters = $ModuleConf.SelectNodes('//Parameter[@type]')
+            foreach ( $Parameter in $Paramerters ) {
+                switch ($Parameter.'#text'.ToLower()) {
+                    "true"  { $props.Add($Parameter.Name , $true ) }
+                    "false" { $props.Add($Parameter.Name , $false ) }
+                    default {
+                        $props.Add($Parameter.Name , $Parameter.'#text')
+                    }
+                }
+            }
+            $obj = New-Object PSObject -Property $props
+        }
+        Write-Output $obj
+    }
+}
+Function Set-ModuleConfig {
+    #.ExternalHelp JDTools.Help.xml
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$Module
+    )
+
+    DynamicParam {
+        $parameterAttribute = [System.Management.Automation.ParameterAttribute]@{
+            Mandatory = $false
+        }
+        $attributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::new()
+        $attributeCollection.Add($parameterAttribute)
+        $paramDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::new()
+        [xml]$ModuleConfig = Import-ModuleConfig -Module $Module
+        foreach($parameter in $($ModuleConfig.SelectNodes('//Parameter[@type]').Where({$_.Type -eq 'dynamic'}).name) ) {
+            $dynParam1 = [System.Management.Automation.RuntimeDefinedParameter]::new(
+            $parameter, [string], $attributeCollection
+            )
+            $paramDictionary.Add($parameter, $dynParam1)
+        }
+        return $paramDictionary
+    }
+    process {
+        $ModuleBase = Get-Module -Name $Module -ListAvailable | Select-Object -ExpandProperty ModuleBase
+        $ModuleConfigPath = "$($ModuleBase)\Config.xml"
+        Copy-Item -Path $ModuleConfigPath -Destination "$ModuleConfigPath.bak" -Force
+        foreach($param in $PSBoundParameters.Keys) {
+            if ($param -in $paramDictionary.Keys) {
+                if (-not ( Get-Variable -name $param -scope 0 -ErrorAction SilentlyContinue ) ) {
+                    New-Variable -Name $param -Value $PSBoundParameters.$param
+                    Write-Verbose "Adding variable for dynamic parameter '$param' with value '$($PSBoundParameters.$param)'" -Verbose
+                    $elemnt = $ModuleConfig.SelectSingleNode("//Parameter[@name='$param']")
+                    $elemnt.InnerText = (Get-Variable $param -ValueOnly)
+                }
+            }
+        }
+        $ModuleConfig.Save($ModuleConfigPath)
+    }
+}
 Function Get-LogFile {
     #.ExternalHelp JDTools.Help.xml
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param (
         [string]$Module = 'JDTools'
     )
@@ -41,29 +145,33 @@ Function Get-LogFile {
 }#END Function
 Function Get-LogFileName {
     #.ExternalHelp JDTools.Help.xml
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param (
-        $Path = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
-        $Name = $($script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
-        (Invoke-Expression $script:JDToolsModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
-        $script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[1])
+        [string]$Module = 'JDTools'
     )
+    begin {
+        $ModuleConf = Get-ModuleConfig -Module $Module
+        $Path = $ModuleConf.LogsFolder
+        $Name = $($ModuleConf.LogFileName.split('.')[0] + '-'+ 
+        (Invoke-Expression ($ModuleConf.LogFileDate)) + '.'+ 
+        $($ModuleConf.LogFileName.split('.')[1]))
+    }
     process {
         Get-Item "$Path\$Name" -ErrorAction stop
     }
 }#END Function
 Function Get-LogFilePath {
     #.ExternalHelp JDTools.Help.xml
-    [cmdletbinding()]
-        Param (
-            [string]$Module = 'JDTools'
-        )
+    [CmdletBinding()]
+    Param (
+        [string]$Module = 'JDTools'
+    )
     begin {
-        [xml]$ModuleConfig = Import-ModuleConfig -Module $Module
-        $Path = $ModuleConfig.Configuration.Logs.LogsFolder
-        $Name = $( $ModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
-            (Invoke-Expression  $ModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
-            $ModuleConfig.Configuration.Logs.LogFileName.split('.')[1])
+        $ModuleConf = Get-ModuleConfig -Module $Module
+        $Path = $ModuleConf.LogsFolder
+        $Name = $($ModuleConf.LogFileName.split('.')[0] + '-'+ 
+        (Invoke-Expression ($ModuleConf.LogFileDate)) + '.'+ 
+        $($ModuleConf.LogFileName.split('.')[1]))
     }
     process {
         Write-Output "$Path\$Name"
@@ -71,7 +179,7 @@ Function Get-LogFilePath {
 }#END Function
 Function Write-log {
     #.ExternalHelp JDTools.Help.xml
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param (
         [Parameter(Mandatory = $false,Position = 0)]
             [string]$Message,
@@ -118,7 +226,7 @@ Function Invoke-LogsRotation {
     [CmdletBinding()]
     Param (
         [Parameter(ValueFromPipeline=$false)]
-        [string]$LogDir = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
+        [string]$LogDir = $ModuleConf.LogsFolder,
         [Parameter(ValueFromPipeline=$false)]
         [int]$DayOfWeek = 2,
         [Parameter(ValueFromPipeline=$false)]
@@ -161,7 +269,6 @@ Function Invoke-LogsRotation {
         if ($monthlyFiles.Count -gt $RotationMonthly) {
             $monthlyFiles[$RotationMonthly..($monthlyFiles.Count - 1)] | Remove-Item -Force
         }
-
         Write-Verbose "Log rotation completed successfully for directory $LogDir."
     }#END Process
 }#END Function
@@ -169,12 +276,16 @@ Function New-TempLogs {
     #.ExternalHelp JDTools.Help.xml
     [CmdletBinding()]
     Param (
-        [string]$Path = $script:JDToolsModuleConfig.Configuration.Logs.LogsFolder,
-        [string]$Name = $($script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[0] + '-'+ 
-        (Invoke-Expression $script:JDToolsModuleConfig.Configuration.Logs.LogFileDate) + '.'+ 
-        $script:JDToolsModuleConfig.Configuration.Logs.LogFileName.split('.')[1]),
+        [string]$Module = 'JDTools',
         [int]$NumberOfDays = 30
     )
+    begin {
+        $ModuleConf = Get-ModuleConfig -Module $Module
+        $Path = $ModuleConf.LogsFolder
+        $Name = $($ModuleConf.LogFileName.split('.')[0] + '-'+ 
+        (Invoke-Expression ($ModuleConf.LogFileDate)) + '.'+ 
+        $($ModuleConf.LogFileName.split('.')[1]))
+    }
     process {
         for ($i = 1; $i -le $NumberOfDays; $i++) { 
             $Date = (Get-Date).AddDays(-$i) 
@@ -273,6 +384,8 @@ function Write-EventLogEntry {
     Write-EventLog -LogName $LogName -Source $Source -EntryType $EntryType -EventId 1 -Message $Message
 }
 Export-ModuleMember -Function 'Import-ModuleConfig',
+'Get-ModuleConfig',
+'Set-ModuleConfig',
 'New-LogFile',
 'New-TempLogs',
 'Write-log', 
