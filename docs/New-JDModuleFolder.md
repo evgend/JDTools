@@ -25,10 +25,8 @@ This function allow us to faster create folder for new PowerShell module.
 
 ### Example 1
 ```powershell
-PS C:\> {{ Add example code here }}
+PS C:\> New-JDModuleFolder -ModuleName MyNewModule -Path $env:UserProfile\Documents\WindowsPowerShell\Modules\
 ```
-
-{{ Add example description here }}
 
 ## PARAMETERS
 
